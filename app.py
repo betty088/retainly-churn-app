@@ -10,157 +10,162 @@ from sklearn.metrics import classification_report, confusion_matrix, roc_auc_sco
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-APP_NAME = "Retainly"  # Nom du produit — à changer ici uniquement si besoin
+APP_NAME = "Retainly"
 
 st.set_page_config(page_title=f"{APP_NAME} — Prévention du Churn", layout="wide", page_icon="◆")
 
 # ============================================================
-# STYLE — inspiré de l'esprit Stripe : light mode, violet signature,
-# ombres douces, grands espaces, typographie soignée
+# STYLE — palette pastel : rose, mauve, nude, rose bébé, bleu bébé
+# Navbar inspirée de la structure Stripe (logo + liens + boutons)
 # ============================================================
 st.markdown(f"""
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
     html, body, [class*="css"]  {{ font-family: 'Inter', sans-serif; }}
-    .stApp {{ background-color: #F6F7FB; }}
+    .stApp {{ background-color: #FFF9F8; }}
 
     section[data-testid="stSidebar"] {{
         background-color: #FFFFFF;
-        border-right: 1px solid #E7E9F2;
+        border-right: 1px solid #F3E4E6;
     }}
 
-    /* Navbar façon Stripe */
+    /* Navbar façon Stripe, palette pastel */
     .navbar {{
         display: flex; justify-content: space-between; align-items: center;
-        padding: 14px 4px; margin-bottom: 22px;
+        padding: 16px 6px; margin-bottom: 26px;
+        border-bottom: 1px solid #F3E4E6;
     }}
-    .navbar-brand {{ display: flex; align-items: center; gap: 9px; }}
-    .navbar-mark {{
-        width: 22px; height: 22px; border-radius: 6px;
-        background: linear-gradient(135deg, #635BFF 0%, #4B3FE0 100%);
-    }}
-    .navbar-name {{ font-size: 17px; font-weight: 700; color: #0A1F44; letter-spacing: -.01em; }}
-    .navbar-actions {{ display: flex; gap: 10px; align-items: center; }}
+    .navbar-left {{ display: flex; align-items: center; gap: 34px; }}
+    .navbar-name {{ font-size: 19px; font-weight: 800; color: #5B3A4A; letter-spacing: -.01em; }}
+    .navbar-links {{ display: flex; gap: 26px; }}
+    .navbar-link {{ color: #8A6B76; font-size: 14px; font-weight: 500; }}
+    .navbar-actions {{ display: flex; gap: 12px; align-items: center; }}
     .nav-btn-ghost {{
-        color: #425466; font-size: 13.5px; font-weight: 600; padding: 8px 14px;
-        border-radius: 6px; border: 1px solid transparent;
+        color: #5B3A4A; font-size: 13.5px; font-weight: 600; padding: 9px 16px;
     }}
     .nav-btn-solid {{
-        background-color: #0A2540; color: #FFFFFF; font-size: 13.5px; font-weight: 600;
-        padding: 8px 16px; border-radius: 6px;
+        background: linear-gradient(135deg, #D88CA3 0%, #C97B95 100%);
+        color: #FFFFFF; font-size: 13.5px; font-weight: 600;
+        padding: 9px 20px; border-radius: 24px;
+        box-shadow: 0 3px 10px rgba(201,123,149,.28);
     }}
 
     .hero {{
-        padding: 38px 40px;
-        border-radius: 16px;
-        background: linear-gradient(180deg, #FFFFFF 0%, #FBFAFF 100%);
-        border: 1px solid #E7E9F2;
-        box-shadow: 0 1px 2px rgba(10,37,64,.04), 0 8px 24px rgba(10,37,64,.03);
+        position: relative; overflow: hidden;
+        padding: 42px 42px;
+        border-radius: 20px;
+        background: linear-gradient(120deg, #FFF3F0 0%, #FDEFF5 40%, #F0F1FB 75%, #EDF4FB 100%);
+        border: 1px solid #F3E4E6;
         margin-bottom: 30px;
     }}
     .hero-eyebrow {{
-        display: inline-block; color: #635BFF; font-size: 12.5px; font-weight: 700;
-        letter-spacing: .04em; margin-bottom: 10px;
+        display: inline-block; color: #C97B95; font-size: 12.5px; font-weight: 700;
+        letter-spacing: .05em; margin-bottom: 12px; text-transform: uppercase;
     }}
-    .hero h1 {{ font-size: 28px; margin: 0 0 10px 0; color: #0A2540; font-weight: 800; letter-spacing: -.02em; }}
-    .hero p {{ color: #55617A; font-size: 15px; margin: 0; line-height: 1.6; max-width: 620px; }}
+    .hero h1 {{ font-size: 30px; margin: 0 0 12px 0; color: #4A2E3C; font-weight: 800; letter-spacing: -.02em; max-width: 620px; }}
+    .hero p {{ color: #8A6B76; font-size: 15px; margin: 0; line-height: 1.65; max-width: 580px; }}
 
-    h2, h3 {{ color: #0A2540 !important; font-weight: 700 !important; letter-spacing: -.01em; }}
-    p, label, .stMarkdown, .stCaption {{ color: #55617A; }}
+    h2, h3 {{ color: #4A2E3C !important; font-weight: 700 !important; letter-spacing: -.01em; }}
+    p, label, .stMarkdown, .stCaption {{ color: #8A6B76; }}
 
     .card {{
         background-color: #FFFFFF;
-        border: 1px solid #E7E9F2;
-        border-radius: 14px;
+        border: 1px solid #F3E4E6;
+        border-radius: 16px;
         padding: 22px 24px;
         margin-bottom: 14px;
-        box-shadow: 0 1px 2px rgba(10,37,64,.04);
+        box-shadow: 0 2px 10px rgba(199,140,163,.06);
     }}
 
     .overview-label {{
-        font-size: 12px; color: #8792A8; font-weight: 700; letter-spacing: .05em;
+        font-size: 11.5px; color: #B695A0; font-weight: 700; letter-spacing: .06em;
         text-transform: uppercase; margin-bottom: 12px;
     }}
     .flow {{ display: flex; flex-direction: column; gap: 0; }}
     .flow-item {{
         display: flex; gap: 12px; align-items: flex-start;
-        padding: 11px 0; border-bottom: 1px solid #EEF0F6;
+        padding: 11px 0; border-bottom: 1px solid #F7ECEE;
     }}
     .flow-item:last-child {{ border-bottom: none; }}
     .flow-num {{
-        width: 22px; height: 22px; border-radius: 6px;
-        background-color: #F0EEFF; color: #635BFF; font-weight: 700; font-size: 11.5px;
+        width: 22px; height: 22px; border-radius: 7px;
+        background-color: #FDEFF3; color: #C97B95; font-weight: 700; font-size: 11.5px;
         display: flex; align-items: center; justify-content: center;
         flex-shrink: 0;
     }}
-    .flow-title {{ color: #0A2540; font-weight: 600; font-size: 13.5px; margin: 0; }}
-    .flow-desc {{ color: #8792A8; font-size: 12px; margin: 2px 0 0 0; }}
+    .flow-title {{ color: #4A2E3C; font-weight: 600; font-size: 13.5px; margin: 0; }}
+    .flow-desc {{ color: #B695A0; font-size: 12px; margin: 2px 0 0 0; }}
 
     div[data-testid="stMetric"] {{
         background-color: #FFFFFF;
-        border: 1px solid #E7E9F2;
-        border-radius: 12px;
+        border: 1px solid #F3E4E6;
+        border-radius: 14px;
         padding: 16px 18px;
-        box-shadow: 0 1px 2px rgba(10,37,64,.04);
+        box-shadow: 0 2px 10px rgba(199,140,163,.06);
     }}
-    div[data-testid="stMetricLabel"] {{ color: #8792A8; font-weight: 500; }}
-    div[data-testid="stMetricValue"] {{ color: #0A2540; font-weight: 700; }}
+    div[data-testid="stMetricLabel"] {{ color: #B695A0; font-weight: 500; }}
+    div[data-testid="stMetricValue"] {{ color: #4A2E3C; font-weight: 700; }}
 
     .risk-bar-track {{
-        width: 100%; height: 7px; background: #EEF0F6; border-radius: 5px;
+        width: 100%; height: 7px; background: #F7ECEE; border-radius: 5px;
         overflow: hidden; margin-top: 9px;
     }}
     .risk-bar-fill {{ height: 100%; border-radius: 5px; }}
 
     .pipeline-step {{
-        background-color: #FBFAFF;
-        border-left: 2px solid #E0DEFF;
-        border-radius: 6px;
+        background-color: #FFFBFA;
+        border-left: 2px solid #F3D8DE;
+        border-radius: 8px;
         padding: 11px 15px;
         margin-bottom: 7px;
-        color: #425466;
+        color: #7A5C67;
         font-size: 13.5px;
         animation: fadeIn .3s ease-in;
     }}
-    .pipeline-step-done {{ border-left: 2px solid #635BFF; }}
+    .pipeline-step-done {{ border-left: 2px solid #C97B95; }}
     @keyframes fadeIn {{ from {{opacity:0; transform: translateY(3px);}} to {{opacity:1; transform: translateY(0);}} }}
 
     .badge-alerte {{
-        background-color: #FFF0F0; color: #C0392B; border: 1px solid #FADBD8;
+        background-color: #FCEEF0; color: #B85C74; border: 1px solid #F5D3DA;
         padding: 5px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px;
         letter-spacing: .03em;
     }}
     .badge-ok {{
-        background-color: #F0EEFF; color: #4B3FE0; border: 1px solid #E0DEFF;
+        background-color: #EDF4FB; color: #5C7CA6; border: 1px solid #D6E4F3;
         padding: 5px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px;
         letter-spacing: .03em;
     }}
     .badge-already {{
-        background-color: #FFF9EC; color: #B7791F; border: 1px solid #F5E6C4;
+        background-color: #FBF6ED; color: #B08A4B; border: 1px solid #EDDFC4;
         padding: 3px 10px; border-radius: 14px; font-weight: 600; font-size: 11px;
     }}
     .why-box {{
-        background-color: #FBFAFF; border: 1px solid #E7E9F2; border-left: 3px solid #635BFF;
-        border-radius: 10px; padding: 16px 18px; margin-top: 12px; color: #425466; font-size: 13.5px;
+        background-color: #FFFBFA; border: 1px solid #F3E4E6; border-left: 3px solid #C97B95;
+        border-radius: 12px; padding: 16px 18px; margin-top: 12px; color: #7A5C67; font-size: 13.5px;
         line-height: 1.6;
     }}
 
     .stButton>button {{
-        background-color: #635BFF;
-        color: #FFFFFF; border: none; border-radius: 8px; font-weight: 600;
+        background: linear-gradient(135deg, #D88CA3 0%, #C97B95 100%);
+        color: #FFFFFF; border: none; border-radius: 24px; font-weight: 600;
         padding: 10px 4px;
-        box-shadow: 0 2px 6px rgba(99,91,255,.25);
+        box-shadow: 0 3px 10px rgba(201,123,149,.28);
     }}
-    .stButton>button:hover {{ background-color: #7A73FF; }}
+    .stButton>button:hover {{ filter: brightness(1.05); }}
 
-    div[data-testid="stDataFrame"] {{ border-radius: 10px; overflow: hidden; }}
-    hr {{ border-color: #E7E9F2 !important; }}
+    div[data-testid="stDataFrame"] {{ border-radius: 12px; overflow: hidden; }}
+    hr {{ border-color: #F3E4E6 !important; }}
 </style>
 
 <div class="navbar">
-    <div class="navbar-brand">
-        <div class="navbar-mark"></div>
+    <div class="navbar-left">
         <div class="navbar-name">{APP_NAME}</div>
+        <div class="navbar-links">
+            <span class="navbar-link">Fonctionnalités ⌄</span>
+            <span class="navbar-link">Solutions ⌄</span>
+            <span class="navbar-link">Ressources ⌄</span>
+            <span class="navbar-link">Tarifs</span>
+        </div>
     </div>
     <div class="navbar-actions">
         <span class="nav-btn-ghost">Se connecter</span>
@@ -187,11 +192,8 @@ for k, v in defaults.items():
 # ============================================================
 with st.sidebar:
     st.markdown(f"""
-    <div style="display:flex; align-items:center; gap:8px; margin-bottom:2px;">
-        <div class="navbar-mark"></div>
-        <div style="font-size:15px; font-weight:700; color:#0A2540;">{APP_NAME}</div>
-    </div>
-    <div style="font-size:12.5px; color:#8792A8; margin:3px 0 0 30px;">Prévention du churn client</div>
+    <div style="font-size:16px; font-weight:800; color:#4A2E3C;">{APP_NAME}</div>
+    <div style="font-size:12.5px; color:#B695A0; margin:3px 0 0 0;">Prévention du churn client</div>
     """, unsafe_allow_html=True)
     st.divider()
     page = st.radio("Navigation", ["Données & Modèle", "Analyser un client"], label_visibility="collapsed")
@@ -234,9 +236,9 @@ with st.sidebar:
         st.markdown(f"**ROC-AUC** {auc:.3f}")
         st.caption(f"{len(st.session_state.feature_columns)} variables · {len(st.session_state.retention_levers or {})} leviers")
 
-st.markdown(f"""
+st.markdown("""
 <div class="hero">
-    <span class="hero-eyebrow">PLATEFORME DE RÉTENTION CLIENT</span>
+    <span class="hero-eyebrow">Plateforme de rétention client</span>
     <h1>Anticipez le départ de vos clients avant qu'il ne soit trop tard</h1>
     <p>Chargez vos données clients, entraînez le modèle de prédiction, puis laissez l'agent analyser chaque client individuellement et recommander l'action de rétention la plus efficace pour son profil.</p>
 </div>
@@ -282,26 +284,31 @@ if page == "Données & Modèle":
             with st.spinner("Nettoyage, encodage et entraînement du modèle..."):
                 df = df_raw.copy()
 
+                # Conversion numérique robuste, quel que soit le dtype d'origine
+                # (corrige le bug pandas "string[pyarrow]" qui n'est pas détecté par dtype == 'object')
                 for col in numeric_features:
-                    if df[col].dtype == 'object':
-                        df[col] = pd.to_numeric(df[col], errors='coerce')
-                    df[col] = df[col].fillna(df[col].median())
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                    median_val = df[col].median()
+                    df[col] = df[col].fillna(median_val if pd.notna(median_val) else 0)
 
                 if id_col != "Aucune" and id_col in df.columns:
                     df = df.drop(id_col, axis=1)
 
-                if df[target_col].dtype == 'object':
+                def is_textual(series):
+                    return not pd.api.types.is_numeric_dtype(series) and not pd.api.types.is_bool_dtype(series)
+
+                if is_textual(df[target_col]):
                     uniques = df[target_col].dropna().unique()
                     if len(uniques) == 2:
                         df[target_col] = df[target_col].map({uniques[0]: 0, uniques[1]: 1})
 
                 for col in categorical_features:
-                    if df[col].dtype == 'object':
+                    if is_textual(df[col]):
                         uniques = df[col].dropna().unique()
                         if len(uniques) == 2:
                             df[col] = df[col].map({uniques[0]: 0, uniques[1]: 1})
 
-                remaining_multi = [c for c in categorical_features if df[c].dtype == 'object']
+                remaining_multi = [c for c in categorical_features if is_textual(df[c])]
                 df = pd.get_dummies(df, columns=remaining_multi, drop_first=True)
                 df = df.dropna(subset=[target_col])
 
@@ -326,7 +333,6 @@ if page == "Données & Modèle":
                 y_pred = model.predict(X_test_s)
                 y_proba = model.predict_proba(X_test_s)[:, 1]
 
-                # Leviers simples (gère le One-Hot Encoding)
                 simple_levers = {}
                 for col in lever_cols:
                     if col in X.columns:
@@ -341,8 +347,6 @@ if page == "Données & Modèle":
                             label = m.replace(f"{col}_", f"{col} : ")
                             simple_levers[label] = changes
 
-                # Ajout de combinaisons de 2 leviers (packages) pour des recommandations
-                # plus riches et personnalisées selon le profil du client
                 retention_levers = {f"Activer : {name}": changes for name, changes in simple_levers.items()}
                 lever_names = list(simple_levers.keys())
                 for a, b in combinations(lever_names, 2):
@@ -377,19 +381,19 @@ if page == "Données & Modèle":
             fig2, ax2 = plt.subplots(figsize=(5, 3.4))
             fig2.patch.set_alpha(0)
             ax2.set_facecolor("none")
-            ax2.barh(importances['feature'][::-1], importances['importance'][::-1], color='#635BFF')
-            ax2.tick_params(colors='#55617A')
-            for spine in ax2.spines.values(): spine.set_color('#E7E9F2')
+            ax2.barh(importances['feature'][::-1], importances['importance'][::-1], color='#C97B95')
+            ax2.tick_params(colors='#8A6B76')
+            for spine in ax2.spines.values(): spine.set_color('#F3E4E6')
             st.pyplot(fig2)
             st.markdown('</div>', unsafe_allow_html=True)
         with c2:
             cm = confusion_matrix(st.session_state.y_test, st.session_state.y_pred)
             fig, ax = plt.subplots(figsize=(4.6, 3.6))
             fig.patch.set_alpha(0)
-            purple_cmap = sns.light_palette("#635BFF", as_cmap=True)
-            sns.heatmap(cm, annot=True, fmt='d', cmap=purple_cmap, ax=ax, cbar=False)
-            ax.set_xlabel("Prédit", color='#55617A'); ax.set_ylabel("Réel", color='#55617A')
-            ax.tick_params(colors='#55617A')
+            rose_cmap = sns.light_palette("#C97B95", as_cmap=True)
+            sns.heatmap(cm, annot=True, fmt='d', cmap=rose_cmap, ax=ax, cbar=False)
+            ax.set_xlabel("Prédit", color='#8A6B76'); ax.set_ylabel("Réel", color='#8A6B76')
+            ax.tick_params(colors='#8A6B76')
             st.pyplot(fig)
 
 # ============================================================
@@ -469,9 +473,9 @@ class RetentionAgent:
 
 
 def risk_color(risk):
-    if risk < 40: return "#4B3FE0"
-    if risk < 70: return "#B7791F"
-    return "#C0392B"
+    if risk < 40: return "#5C7CA6"
+    if risk < 70: return "#B08A4B"
+    return "#B85C74"
 
 
 # ============================================================
@@ -545,29 +549,29 @@ if page == "Analyser un client":
                     with c1:
                         st.markdown(f"""
                         <div class="card">
-                            <div style="color:#8792A8; font-size:13px;">Risque initial</div>
+                            <div style="color:#B695A0; font-size:13px;">Risque initial</div>
                             <div style="font-size:28px; font-weight:800; color:{risk_color(result['risque_initial'])};">{result['risque_initial']}%</div>
                             <div class="risk-bar-track"><div class="risk-bar-fill" style="width:{result['risque_initial']}%; background:{risk_color(result['risque_initial'])};"></div></div>
                         </div>""", unsafe_allow_html=True)
                     with c2:
                         st.markdown(f"""
                         <div class="card">
-                            <div style="color:#8792A8; font-size:13px;">Risque après action</div>
+                            <div style="color:#B695A0; font-size:13px;">Risque après action</div>
                             <div style="font-size:28px; font-weight:800; color:{risk_color(result['nouveau_risque'])};">{result['nouveau_risque']}%</div>
                             <div class="risk-bar-track"><div class="risk-bar-fill" style="width:{result['nouveau_risque']}%; background:{risk_color(result['nouveau_risque'])};"></div></div>
                         </div>""", unsafe_allow_html=True)
                     with c3:
                         st.markdown(f"""
                         <div class="card">
-                            <div style="color:#8792A8; font-size:13px;">Réduction obtenue</div>
-                            <div style="font-size:28px; font-weight:800; color:#635BFF;">-{result['reduction']} pts</div>
-                            <div style="margin-top:6px; color:#0A2540; font-size:13px; font-weight:600;">{result['recommandation']}</div>
+                            <div style="color:#B695A0; font-size:13px;">Réduction obtenue</div>
+                            <div style="font-size:28px; font-weight:800; color:#C97B95;">-{result['reduction']} pts</div>
+                            <div style="margin-top:6px; color:#4A2E3C; font-size:13px; font-weight:600;">{result['recommandation']}</div>
                         </div>""", unsafe_allow_html=True)
 
                     n_alt = result['nb_testees'] - 1
                     st.markdown(f"""
                     <div class="why-box">
-                        <strong style="color:#0A2540;">Pourquoi cette recommandation ?</strong><br>
+                        <strong style="color:#4A2E3C;">Pourquoi cette recommandation ?</strong><br>
                         Ce client a été analysé individuellement : parmi les {result['nb_testees']} actions et combinaisons
                         testées par le Digital Twin pour son profil précis, « {result['recommandation']} » est celle qui
                         produit la plus forte baisse de son risque de départ (-{result['reduction']} points),
