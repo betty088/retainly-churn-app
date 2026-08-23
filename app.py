@@ -33,9 +33,20 @@ st.markdown(f"""
         display: flex; justify-content: space-between; align-items: center;
         padding: 16px 6px; margin-bottom: 26px;
         border-bottom: 1px solid #ECE6E5;
+        flex-wrap: wrap; gap: 18px;
     }}
     .navbar-name {{ font-size: 19px; font-weight: 800; color: #3D2B35; letter-spacing: -.01em; }}
     .navbar-sub {{ font-size: 12.5px; color: #9C8E92; margin-top: 1px; }}
+
+    .nav-steps {{ display: flex; align-items: center; gap: 4px; }}
+    .nav-step {{ display: flex; align-items: center; gap: 8px; }}
+    .nav-step-num {{
+        width: 20px; height: 20px; border-radius: 6px;
+        background-color: #F1EEF5; color: #6B5B73; font-weight: 700; font-size: 10.5px;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }}
+    .nav-step-label {{ font-size: 12.5px; color: #7A6E72; font-weight: 500; white-space: nowrap; }}
+    .nav-step-sep {{ width: 18px; height: 1px; background-color: #DFD6D9; margin: 0 8px; }}
 
     .hero {{
         padding: 42px 42px;
@@ -165,6 +176,19 @@ st.markdown(f"""
         <div class="navbar-name">{APP_NAME}</div>
         <div class="navbar-sub">Plateforme de prévention du churn</div>
     </div>
+    <div class="nav-steps">
+        <div class="nav-step"><div class="nav-step-num">1</div><div class="nav-step-label">Import</div></div>
+        <div class="nav-step-sep"></div>
+        <div class="nav-step"><div class="nav-step-num">2</div><div class="nav-step-label">Modèle</div></div>
+        <div class="nav-step-sep"></div>
+        <div class="nav-step"><div class="nav-step-num">3</div><div class="nav-step-label">Client</div></div>
+        <div class="nav-step-sep"></div>
+        <div class="nav-step"><div class="nav-step-num">4</div><div class="nav-step-label">Agent</div></div>
+        <div class="nav-step-sep"></div>
+        <div class="nav-step"><div class="nav-step-num">5</div><div class="nav-step-label">Digital Twin</div></div>
+        <div class="nav-step-sep"></div>
+        <div class="nav-step"><div class="nav-step-num">6</div><div class="nav-step-label">Recommandation</div></div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -193,37 +217,6 @@ with st.sidebar:
     page = st.radio("Navigation", ["Données & Modèle", "Analyser un client"], label_visibility="collapsed")
     st.divider()
 
-    st.markdown('<div class="overview-label">Aperçu du processus</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div class="flow">
-        <div class="flow-item">
-            <div class="flow-num">1</div>
-            <div><p class="flow-title">Import des données</p><p class="flow-desc">Fichier clients (CSV)</p></div>
-        </div>
-        <div class="flow-item">
-            <div class="flow-num">2</div>
-            <div><p class="flow-title">Entraînement du modèle</p><p class="flow-desc">Prédiction du risque de départ</p></div>
-        </div>
-        <div class="flow-item">
-            <div class="flow-num">3</div>
-            <div><p class="flow-title">Sélection d'un client</p><p class="flow-desc">Analyse individuelle</p></div>
-        </div>
-        <div class="flow-item">
-            <div class="flow-num">4</div>
-            <div><p class="flow-title">Analyse par l'Agent</p><p class="flow-desc">Calcul du risque actuel</p></div>
-        </div>
-        <div class="flow-item">
-            <div class="flow-num">5</div>
-            <div><p class="flow-title">Simulations (Digital Twin)</p><p class="flow-desc">Actions seules et combinées</p></div>
-        </div>
-        <div class="flow-item">
-            <div class="flow-num">6</div>
-            <div><p class="flow-title">Recommandation</p><p class="flow-desc">Action la plus efficace, propre à chaque client</p></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.divider()
     if st.session_state.model is not None:
         auc = roc_auc_score(st.session_state.y_test, st.session_state.y_proba)
         st.markdown('<div class="overview-label">Modèle actif</div>', unsafe_allow_html=True)
