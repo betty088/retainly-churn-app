@@ -218,6 +218,11 @@ with st.sidebar:
     st.divider()
 
     if st.session_state.model is not None:
+        if st.button("Réinitialiser", use_container_width=True):
+            for k in list(defaults.keys()):
+                st.session_state[k] = defaults[k]
+            st.rerun()
+        st.divider()
         auc = roc_auc_score(st.session_state.y_test, st.session_state.y_proba)
         st.markdown('<div class="overview-label">Modèle actif</div>', unsafe_allow_html=True)
         st.markdown(f"**ROC-AUC** {auc:.3f}")
@@ -668,4 +673,9 @@ if page == "Analyser un client":
                                 unsafe_allow_html=True)
 
 st.divider()
-st.caption(f"{APP_NAME} — Plateforme de prévention du churn basée sur un Digital Twin et un Agent de recommandation")
+foot1, foot2 = st.columns([3, 1])
+with foot1:
+    st.caption(f"{APP_NAME} — Plateforme de prévention du churn basée sur un Digital Twin et un Agent de recommandation")
+    st.caption("Les données importées restent locales à votre session et ne sont pas conservées après la fermeture de l'application.")
+with foot2:
+    st.caption("Version 1.0")
