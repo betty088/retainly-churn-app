@@ -1,0 +1,599 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import time
+from itertools import combinations
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+APP_NAME = "Retainly"  # Nom du produit — à changer ici uniquement si besoin
+
+st.set_page_config(page_title=f"{APP_NAME} — Prévention du Churn", layout="wide", page_icon="◆")
+
+# ============================================================
+# STYLE — inspiré de l'esprit Stripe : light mode, violet signature,
+# ombres douces, grands espaces, typographie soignée
+# ============================================================
+st.markdown(f"""
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    html, body, [class*="css"]  {{ font-family: 'Inter', sans-serif; }}
+    .stApp {{ background-color: #F6F7FB; }}
+
+    section[data-testid="stSidebar"] {{
+        background-color: #FFFFFF;
+        border-right: 1px solid #E7E9F2;
+    }}
+
+    /* Navbar façon Stripe */
+    .navbar {{
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 14px 4px; margin-bottom: 22px;
+    }}
+    .navbar-brand {{ display: flex; align-items: center; gap: 9px; }}
+    .navbar-mark {{
+        width: 22px; height: 22px; border-radius: 6px;
+        background: linear-gradient(135deg, #635BFF 0%, #4B3FE0 100%);
+    }}
+    .navbar-name {{ font-size: 17px; font-weight: 700; color: #0A1F44; letter-spacing: -.01em; }}
+    .navbar-actions {{ display: flex; gap: 10px; align-items: center; }}
+    .nav-btn-ghost {{
+        color: #425466; font-size: 13.5px; font-weight: 600; padding: 8px 14px;
+        border-radius: 6px; border: 1px solid transparent;
+    }}
+    .nav-btn-solid {{
+        background-color: #0A2540; color: #FFFFFF; font-size: 13.5px; font-weight: 600;
+        padding: 8px 16px; border-radius: 6px;
+    }}
+
+    .hero {{
+        padding: 38px 40px;
+        border-radius: 16px;
+        background: linear-gradient(180deg, #FFFFFF 0%, #FBFAFF 100%);
+        border: 1px solid #E7E9F2;
+        box-shadow: 0 1px 2px rgba(10,37,64,.04), 0 8px 24px rgba(10,37,64,.03);
+        margin-bottom: 30px;
+    }}
+    .hero-eyebrow {{
+        display: inline-block; color: #635BFF; font-size: 12.5px; font-weight: 700;
+        letter-spacing: .04em; margin-bottom: 10px;
+    }}
+    .hero h1 {{ font-size: 28px; margin: 0 0 10px 0; color: #0A2540; font-weight: 800; letter-spacing: -.02em; }}
+    .hero p {{ color: #55617A; font-size: 15px; margin: 0; line-height: 1.6; max-width: 620px; }}
+
+    h2, h3 {{ color: #0A2540 !important; font-weight: 700 !important; letter-spacing: -.01em; }}
+    p, label, .stMarkdown, .stCaption {{ color: #55617A; }}
+
+    .card {{
+        background-color: #FFFFFF;
+        border: 1px solid #E7E9F2;
+        border-radius: 14px;
+        padding: 22px 24px;
+        margin-bottom: 14px;
+        box-shadow: 0 1px 2px rgba(10,37,64,.04);
+    }}
+
+    .overview-label {{
+        font-size: 12px; color: #8792A8; font-weight: 700; letter-spacing: .05em;
+        text-transform: uppercase; margin-bottom: 12px;
+    }}
+    .flow {{ display: flex; flex-direction: column; gap: 0; }}
+    .flow-item {{
+        display: flex; gap: 12px; align-items: flex-start;
+        padding: 11px 0; border-bottom: 1px solid #EEF0F6;
+    }}
+    .flow-item:last-child {{ border-bottom: none; }}
+    .flow-num {{
+        width: 22px; height: 22px; border-radius: 6px;
+        background-color: #F0EEFF; color: #635BFF; font-weight: 700; font-size: 11.5px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }}
+    .flow-title {{ color: #0A2540; font-weight: 600; font-size: 13.5px; margin: 0; }}
+    .flow-desc {{ color: #8792A8; font-size: 12px; margin: 2px 0 0 0; }}
+
+    div[data-testid="stMetric"] {{
+        background-color: #FFFFFF;
+        border: 1px solid #E7E9F2;
+        border-radius: 12px;
+        padding: 16px 18px;
+        box-shadow: 0 1px 2px rgba(10,37,64,.04);
+    }}
+    div[data-testid="stMetricLabel"] {{ color: #8792A8; font-weight: 500; }}
+    div[data-testid="stMetricValue"] {{ color: #0A2540; font-weight: 700; }}
+
+    .risk-bar-track {{
+        width: 100%; height: 7px; background: #EEF0F6; border-radius: 5px;
+        overflow: hidden; margin-top: 9px;
+    }}
+    .risk-bar-fill {{ height: 100%; border-radius: 5px; }}
+
+    .pipeline-step {{
+        background-color: #FBFAFF;
+        border-left: 2px solid #E0DEFF;
+        border-radius: 6px;
+        padding: 11px 15px;
+        margin-bottom: 7px;
+        color: #425466;
+        font-size: 13.5px;
+        animation: fadeIn .3s ease-in;
+    }}
+    .pipeline-step-done {{ border-left: 2px solid #635BFF; }}
+    @keyframes fadeIn {{ from {{opacity:0; transform: translateY(3px);}} to {{opacity:1; transform: translateY(0);}} }}
+
+    .badge-alerte {{
+        background-color: #FFF0F0; color: #C0392B; border: 1px solid #FADBD8;
+        padding: 5px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px;
+        letter-spacing: .03em;
+    }}
+    .badge-ok {{
+        background-color: #F0EEFF; color: #4B3FE0; border: 1px solid #E0DEFF;
+        padding: 5px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px;
+        letter-spacing: .03em;
+    }}
+    .badge-already {{
+        background-color: #FFF9EC; color: #B7791F; border: 1px solid #F5E6C4;
+        padding: 3px 10px; border-radius: 14px; font-weight: 600; font-size: 11px;
+    }}
+    .why-box {{
+        background-color: #FBFAFF; border: 1px solid #E7E9F2; border-left: 3px solid #635BFF;
+        border-radius: 10px; padding: 16px 18px; margin-top: 12px; color: #425466; font-size: 13.5px;
+        line-height: 1.6;
+    }}
+
+    .stButton>button {{
+        background-color: #635BFF;
+        color: #FFFFFF; border: none; border-radius: 8px; font-weight: 600;
+        padding: 10px 4px;
+        box-shadow: 0 2px 6px rgba(99,91,255,.25);
+    }}
+    .stButton>button:hover {{ background-color: #7A73FF; }}
+
+    div[data-testid="stDataFrame"] {{ border-radius: 10px; overflow: hidden; }}
+    hr {{ border-color: #E7E9F2 !important; }}
+</style>
+
+<div class="navbar">
+    <div class="navbar-brand">
+        <div class="navbar-mark"></div>
+        <div class="navbar-name">{APP_NAME}</div>
+    </div>
+    <div class="navbar-actions">
+        <span class="nav-btn-ghost">Se connecter</span>
+        <span class="nav-btn-solid">Demander une démo</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ============================================================
+# ETAT DE SESSION
+# ============================================================
+defaults = {
+    'model': None, 'scaler': None, 'X': None, 'y': None,
+    'feature_columns': None, 'numeric_features': None,
+    'X_test': None, 'y_test': None, 'y_proba': None, 'y_pred': None,
+    'retention_levers': None,
+}
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
+
+# ============================================================
+# SIDEBAR
+# ============================================================
+with st.sidebar:
+    st.markdown(f"""
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:2px;">
+        <div class="navbar-mark"></div>
+        <div style="font-size:15px; font-weight:700; color:#0A2540;">{APP_NAME}</div>
+    </div>
+    <div style="font-size:12.5px; color:#8792A8; margin:3px 0 0 30px;">Prévention du churn client</div>
+    """, unsafe_allow_html=True)
+    st.divider()
+    page = st.radio("Navigation", ["Données & Modèle", "Analyser un client"], label_visibility="collapsed")
+    st.divider()
+
+    st.markdown('<div class="overview-label">Aperçu du processus</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="flow">
+        <div class="flow-item">
+            <div class="flow-num">1</div>
+            <div><p class="flow-title">Import des données</p><p class="flow-desc">Fichier clients (CSV)</p></div>
+        </div>
+        <div class="flow-item">
+            <div class="flow-num">2</div>
+            <div><p class="flow-title">Entraînement du modèle</p><p class="flow-desc">Prédiction du risque de départ</p></div>
+        </div>
+        <div class="flow-item">
+            <div class="flow-num">3</div>
+            <div><p class="flow-title">Sélection d'un client</p><p class="flow-desc">Analyse individuelle</p></div>
+        </div>
+        <div class="flow-item">
+            <div class="flow-num">4</div>
+            <div><p class="flow-title">Analyse par l'Agent</p><p class="flow-desc">Calcul du risque actuel</p></div>
+        </div>
+        <div class="flow-item">
+            <div class="flow-num">5</div>
+            <div><p class="flow-title">Simulations (Digital Twin)</p><p class="flow-desc">Actions seules et combinées</p></div>
+        </div>
+        <div class="flow-item">
+            <div class="flow-num">6</div>
+            <div><p class="flow-title">Recommandation</p><p class="flow-desc">Action la plus efficace, propre à chaque client</p></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.divider()
+    if st.session_state.model is not None:
+        auc = roc_auc_score(st.session_state.y_test, st.session_state.y_proba)
+        st.markdown('<div class="overview-label">Modèle actif</div>', unsafe_allow_html=True)
+        st.markdown(f"**ROC-AUC** {auc:.3f}")
+        st.caption(f"{len(st.session_state.feature_columns)} variables · {len(st.session_state.retention_levers or {})} leviers")
+
+st.markdown(f"""
+<div class="hero">
+    <span class="hero-eyebrow">PLATEFORME DE RÉTENTION CLIENT</span>
+    <h1>Anticipez le départ de vos clients avant qu'il ne soit trop tard</h1>
+    <p>Chargez vos données clients, entraînez le modèle de prédiction, puis laissez l'agent analyser chaque client individuellement et recommander l'action de rétention la plus efficace pour son profil.</p>
+</div>
+""", unsafe_allow_html=True)
+
+# ============================================================
+# PAGE 1 — DONNEES & MODELE
+# ============================================================
+if page == "Données & Modèle":
+    st.subheader("1 · Charger vos données")
+    uploaded_file = st.file_uploader("Fichier CSV (données clients)", type=["csv"])
+
+    if uploaded_file is not None:
+        df_raw = pd.read_csv(uploaded_file)
+        st.success(f"Fichier chargé — {df_raw.shape[0]} lignes, {df_raw.shape[1]} colonnes")
+        with st.expander("Aperçu des données"):
+            st.dataframe(df_raw.head())
+
+        st.subheader("2 · Configuration")
+        col1, col2 = st.columns(2)
+        all_columns = df_raw.columns.tolist()
+
+        with col1:
+            target_col = st.selectbox("Colonne cible (churn / a quitté ?)", all_columns)
+            id_col = st.selectbox("Colonne identifiant (optionnel)", ["Aucune"] + all_columns)
+
+        with col2:
+            numeric_features = st.multiselect(
+                "Colonnes numériques (âge, montant, durée...)",
+                [c for c in all_columns if c != target_col],
+            )
+
+        remaining_cols = [c for c in all_columns if c not in numeric_features and c != target_col and c != id_col]
+        categorical_features = st.multiselect(
+            "Colonnes catégorielles à encoder", remaining_cols, default=remaining_cols,
+        )
+
+        st.subheader("3 · Leviers de rétention")
+        st.caption("Actions que l'agent pourra tester, seules ou combinées, pour réduire le risque")
+        lever_cols = st.multiselect("Colonnes-leviers disponibles", categorical_features)
+
+        if st.button("Lancer l'analyse et entraîner le modèle", type="primary"):
+            with st.spinner("Nettoyage, encodage et entraînement du modèle..."):
+                df = df_raw.copy()
+
+                for col in numeric_features:
+                    if df[col].dtype == 'object':
+                        df[col] = pd.to_numeric(df[col], errors='coerce')
+                    df[col] = df[col].fillna(df[col].median())
+
+                if id_col != "Aucune" and id_col in df.columns:
+                    df = df.drop(id_col, axis=1)
+
+                if df[target_col].dtype == 'object':
+                    uniques = df[target_col].dropna().unique()
+                    if len(uniques) == 2:
+                        df[target_col] = df[target_col].map({uniques[0]: 0, uniques[1]: 1})
+
+                for col in categorical_features:
+                    if df[col].dtype == 'object':
+                        uniques = df[col].dropna().unique()
+                        if len(uniques) == 2:
+                            df[col] = df[col].map({uniques[0]: 0, uniques[1]: 1})
+
+                remaining_multi = [c for c in categorical_features if df[c].dtype == 'object']
+                df = pd.get_dummies(df, columns=remaining_multi, drop_first=True)
+                df = df.dropna(subset=[target_col])
+
+                X = df.drop(target_col, axis=1)
+                y = df[target_col].astype(int)
+                X = X.select_dtypes(include=[np.number, 'bool']).astype(float)
+
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, test_size=0.2, random_state=42, stratify=y
+                )
+
+                scaler = StandardScaler()
+                valid_numeric = [c for c in numeric_features if c in X.columns]
+                X_train_s, X_test_s = X_train.copy(), X_test.copy()
+                if valid_numeric:
+                    X_train_s[valid_numeric] = scaler.fit_transform(X_train[valid_numeric])
+                    X_test_s[valid_numeric] = scaler.transform(X_test[valid_numeric])
+
+                model = RandomForestClassifier(n_estimators=200, max_depth=10, class_weight='balanced', random_state=42)
+                model.fit(X_train_s, y_train)
+
+                y_pred = model.predict(X_test_s)
+                y_proba = model.predict_proba(X_test_s)[:, 1]
+
+                # Leviers simples (gère le One-Hot Encoding)
+                simple_levers = {}
+                for col in lever_cols:
+                    if col in X.columns:
+                        simple_levers[f"{col}"] = {col: 1}
+                    else:
+                        matching = [c for c in X.columns if c.startswith(f"{col}_")]
+                        for m in matching:
+                            others = [c for c in matching if c != m]
+                            changes = {m: 1}
+                            for o in others:
+                                changes[o] = 0
+                            label = m.replace(f"{col}_", f"{col} : ")
+                            simple_levers[label] = changes
+
+                # Ajout de combinaisons de 2 leviers (packages) pour des recommandations
+                # plus riches et personnalisées selon le profil du client
+                retention_levers = {f"Activer : {name}": changes for name, changes in simple_levers.items()}
+                lever_names = list(simple_levers.keys())
+                for a, b in combinations(lever_names, 2):
+                    combined = {**simple_levers[a], **simple_levers[b]}
+                    retention_levers[f"Package : {a} + {b}"] = combined
+
+                st.session_state.update({
+                    'model': model, 'scaler': scaler, 'X': X, 'y': y,
+                    'feature_columns': X.columns.tolist(), 'numeric_features': valid_numeric,
+                    'X_test': X_test_s, 'y_test': y_test, 'y_proba': y_proba, 'y_pred': y_pred,
+                    'retention_levers': retention_levers,
+                })
+
+            st.success("Modèle entraîné avec succès. Ouvrez « Analyser un client » dans le menu de gauche.")
+
+    if st.session_state.model is not None:
+        st.divider()
+        st.subheader("Performance du modèle")
+        c1, c2 = st.columns([1, 1.4])
+        with c1:
+            auc = roc_auc_score(st.session_state.y_test, st.session_state.y_proba)
+            report = classification_report(st.session_state.y_test, st.session_state.y_pred, output_dict=True)
+            m1, m2 = st.columns(2)
+            m1.metric("ROC-AUC", f"{auc:.3f}")
+            m2.metric("Accuracy", f"{report['accuracy']:.3f}")
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.caption("Facteurs les plus déterminants")
+            importances = pd.DataFrame({
+                'feature': st.session_state.feature_columns,
+                'importance': st.session_state.model.feature_importances_
+            }).sort_values('importance', ascending=False).head(8)
+            fig2, ax2 = plt.subplots(figsize=(5, 3.4))
+            fig2.patch.set_alpha(0)
+            ax2.set_facecolor("none")
+            ax2.barh(importances['feature'][::-1], importances['importance'][::-1], color='#635BFF')
+            ax2.tick_params(colors='#55617A')
+            for spine in ax2.spines.values(): spine.set_color('#E7E9F2')
+            st.pyplot(fig2)
+            st.markdown('</div>', unsafe_allow_html=True)
+        with c2:
+            cm = confusion_matrix(st.session_state.y_test, st.session_state.y_pred)
+            fig, ax = plt.subplots(figsize=(4.6, 3.6))
+            fig.patch.set_alpha(0)
+            purple_cmap = sns.light_palette("#635BFF", as_cmap=True)
+            sns.heatmap(cm, annot=True, fmt='d', cmap=purple_cmap, ax=ax, cbar=False)
+            ax.set_xlabel("Prédit", color='#55617A'); ax.set_ylabel("Réel", color='#55617A')
+            ax.tick_params(colors='#55617A')
+            st.pyplot(fig)
+
+# ============================================================
+# CLASSES — Agent d'abord, Digital Twin ensuite (piloté par l'Agent)
+# ============================================================
+class ClientDigitalTwin:
+    def __init__(self, features_dict, model, scaler, numeric_features, feature_columns):
+        self.state = features_dict.copy()
+        self.model = model
+        self.scaler = scaler
+        self.numeric_features = numeric_features
+        self.feature_columns = feature_columns
+
+    def _prepare(self, state_dict):
+        row = pd.DataFrame([state_dict])[self.feature_columns]
+        row_scaled = row.copy()
+        if self.numeric_features:
+            row_scaled[self.numeric_features] = self.scaler.transform(row[self.numeric_features])
+        return row_scaled
+
+    def get_risk(self, state_dict=None):
+        state_dict = state_dict or self.state
+        proba = self.model.predict_proba(self._prepare(state_dict))[0][1]
+        return round(proba * 100, 2)
+
+
+class RetentionAgent:
+    def __init__(self, model, scaler, numeric_features, feature_columns, retention_levers, risk_threshold=50):
+        self.model = model
+        self.scaler = scaler
+        self.numeric_features = numeric_features
+        self.feature_columns = feature_columns
+        self.retention_levers = retention_levers
+        self.risk_threshold = risk_threshold
+
+    def analyze_client(self, client_raw_dict, progress_callback=None):
+        twin = ClientDigitalTwin(client_raw_dict, self.model, self.scaler,
+                                  self.numeric_features, self.feature_columns)
+
+        if progress_callback: progress_callback("risk_computed")
+        base_risk = twin.get_risk()
+
+        if base_risk < self.risk_threshold:
+            if progress_callback: progress_callback("decision_ok")
+            return {'statut': 'OK', 'risque_initial': base_risk,
+                    'message': "Client à faible risque — aucune action requise."}
+
+        if progress_callback: progress_callback("decision_alerte")
+
+        results, skipped = [], []
+        for action_name, changes in self.retention_levers.items():
+            already_active = all(client_raw_dict.get(k) == v for k, v in changes.items())
+            if already_active:
+                skipped.append(action_name)
+                continue
+            simulated_state = client_raw_dict.copy()
+            simulated_state.update(changes)
+            new_risk = twin.get_risk(simulated_state)
+            results.append({'action': action_name, 'nouveau_risque': new_risk,
+                             'reduction': round(base_risk - new_risk, 2)})
+            if progress_callback: progress_callback("simulation", action_name, new_risk)
+
+        if not results:
+            if progress_callback: progress_callback("done")
+            return {'statut': 'ALERTE', 'risque_initial': base_risk,
+                    'message': "Toutes les actions possibles sont déjà actives chez ce client.",
+                    'deja_actifs': skipped}
+
+        ranked = sorted(results, key=lambda x: -x['reduction'])
+        best = ranked[0]
+        if progress_callback: progress_callback("done")
+
+        return {'statut': 'ALERTE', 'risque_initial': base_risk,
+                'recommandation': best['action'], 'nouveau_risque': best['nouveau_risque'],
+                'reduction': best['reduction'], 'toutes_options': ranked[:10],
+                'nb_testees': len(results), 'deja_actifs': skipped}
+
+
+def risk_color(risk):
+    if risk < 40: return "#4B3FE0"
+    if risk < 70: return "#B7791F"
+    return "#C0392B"
+
+
+# ============================================================
+# PAGE 2 — ANALYSE D'UN CLIENT
+# ============================================================
+if page == "Analyser un client":
+    if st.session_state.model is None:
+        st.info("Entraînez d'abord un modèle dans « Données & Modèle ».")
+    else:
+        st.subheader("Sélectionner un client")
+        client_idx = st.selectbox("Client (index dans l'échantillon de test)",
+                                   st.session_state.X_test.index.tolist())
+        client_state = st.session_state.X_test.loc[client_idx].to_dict()
+
+        if not st.session_state.retention_levers:
+            st.warning("Aucun levier de rétention défini. Retournez dans « Données & Modèle » pour en sélectionner.")
+
+        launch = st.button("Lancer l'agent sur ce client", type="primary",
+                            disabled=not st.session_state.retention_levers)
+
+        if launch:
+            agent = RetentionAgent(
+                model=st.session_state.model, scaler=st.session_state.scaler,
+                numeric_features=st.session_state.numeric_features,
+                feature_columns=st.session_state.feature_columns,
+                retention_levers=st.session_state.retention_levers
+            )
+
+            steps_placeholder = st.empty()
+            log = []
+
+            def render_log():
+                html = "".join(f'<div class="pipeline-step pipeline-step-done">{s}</div>' for s in log)
+                steps_placeholder.markdown(html, unsafe_allow_html=True)
+
+            def cb(event, *args):
+                if event == "risk_computed":
+                    log.append("Étape 1 — Chargement du client dans le Digital Twin et calcul du risque initial.")
+                elif event == "decision_ok":
+                    log.append("Étape 2 — Décision de l'Agent : risque faible, aucune simulation nécessaire.")
+                elif event == "decision_alerte":
+                    log.append("Étape 2 — Décision de l'Agent : risque élevé, activation du Digital Twin.")
+                elif event == "simulation":
+                    log.append(f"Étape 3 — Simulation : {args[0]} → risque estimé {args[1]}%")
+                elif event == "done":
+                    log.append("Étape 4 — Comparaison de toutes les simulations et sélection de la meilleure.")
+                render_log()
+                time.sleep(0.12)
+
+            result = agent.analyze_client(client_state, progress_callback=cb)
+
+            st.divider()
+            if result['statut'] == 'OK':
+                st.markdown('<span class="badge-ok">Risque faible</span>', unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="card">
+                    <div style="font-size:34px; font-weight:800; color:{risk_color(result['risque_initial'])};">
+                        {result['risque_initial']}%
+                    </div>
+                    <div class="risk-bar-track">
+                        <div class="risk-bar-fill" style="width:{result['risque_initial']}%; background:{risk_color(result['risque_initial'])};"></div>
+                    </div>
+                    <p style="margin-top:10px;">{result['message']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown('<span class="badge-alerte">Alerte churn</span>', unsafe_allow_html=True)
+
+                if 'recommandation' in result:
+                    c1, c2, c3 = st.columns(3)
+                    with c1:
+                        st.markdown(f"""
+                        <div class="card">
+                            <div style="color:#8792A8; font-size:13px;">Risque initial</div>
+                            <div style="font-size:28px; font-weight:800; color:{risk_color(result['risque_initial'])};">{result['risque_initial']}%</div>
+                            <div class="risk-bar-track"><div class="risk-bar-fill" style="width:{result['risque_initial']}%; background:{risk_color(result['risque_initial'])};"></div></div>
+                        </div>""", unsafe_allow_html=True)
+                    with c2:
+                        st.markdown(f"""
+                        <div class="card">
+                            <div style="color:#8792A8; font-size:13px;">Risque après action</div>
+                            <div style="font-size:28px; font-weight:800; color:{risk_color(result['nouveau_risque'])};">{result['nouveau_risque']}%</div>
+                            <div class="risk-bar-track"><div class="risk-bar-fill" style="width:{result['nouveau_risque']}%; background:{risk_color(result['nouveau_risque'])};"></div></div>
+                        </div>""", unsafe_allow_html=True)
+                    with c3:
+                        st.markdown(f"""
+                        <div class="card">
+                            <div style="color:#8792A8; font-size:13px;">Réduction obtenue</div>
+                            <div style="font-size:28px; font-weight:800; color:#635BFF;">-{result['reduction']} pts</div>
+                            <div style="margin-top:6px; color:#0A2540; font-size:13px; font-weight:600;">{result['recommandation']}</div>
+                        </div>""", unsafe_allow_html=True)
+
+                    n_alt = result['nb_testees'] - 1
+                    st.markdown(f"""
+                    <div class="why-box">
+                        <strong style="color:#0A2540;">Pourquoi cette recommandation ?</strong><br>
+                        Ce client a été analysé individuellement : parmi les {result['nb_testees']} actions et combinaisons
+                        testées par le Digital Twin pour son profil précis, « {result['recommandation']} » est celle qui
+                        produit la plus forte baisse de son risque de départ (-{result['reduction']} points),
+                        devançant les {n_alt} autres options simulées pour ce même client.
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    st.caption("Top simulations testées pour ce client, classées par efficacité :")
+                    df_opts = pd.DataFrame(result['toutes_options'])
+                    st.dataframe(
+                        df_opts,
+                        use_container_width=True, hide_index=True,
+                        column_config={
+                            "action": "Action testée",
+                            "nouveau_risque": st.column_config.ProgressColumn(
+                                "Nouveau risque", format="%.1f%%", min_value=0, max_value=100),
+                            "reduction": st.column_config.NumberColumn("Réduction (pts)", format="%.2f"),
+                        }
+                    )
+                else:
+                    st.markdown(f'<div class="card">{result.get("message","")}</div>', unsafe_allow_html=True)
+
+                if result.get('deja_actifs'):
+                    st.caption("Leviers déjà actifs chez ce client (non testés) :")
+                    st.markdown(" ".join(f'<span class="badge-already">{a}</span>' for a in result['deja_actifs']),
+                                unsafe_allow_html=True)
+
+st.divider()
+st.caption(f"{APP_NAME} — Plateforme de prévention du churn basée sur un Digital Twin et un Agent de recommandation")
