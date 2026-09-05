@@ -175,8 +175,9 @@ if 'page' not in st.session_state:
     st.session_state.page = "Données & Modèle"
 
 step_targets = {
-    "1 · Import": "Données & Modèle", "2 · Dashboard": "Données & Modèle",
-    "3 · Modèle": "Données & Modèle", "4 · Analyse client": "Analyser un client",
+    "1 · Import": "Données & Modèle", "2 · Modèle": "Données & Modèle",
+    "3 · Client": "Analyser un client", "4 · Agent": "Analyser un client",
+    "5 · Digital Twin": "Analyser un client", "6 · Recommandation": "Analyser un client",
 }
 nav_cols = st.columns(len(step_targets))
 for col, (label, target) in zip(nav_cols, step_targets.items()):
