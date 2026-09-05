@@ -39,14 +39,12 @@ st.markdown(f"""
     .navbar-sub {{ font-size: 12.5px; color: #9C8E92; margin-top: 1px; }}
 
     .nav-steps {{ display: flex; align-items: center; gap: 4px; }}
-    .nav-step {{ display: flex; align-items: center; gap: 8px; }}
-    .nav-step-num {{
-        width: 20px; height: 20px; border-radius: 6px;
-        background-color: #F1EEF5; color: #6B5B73; font-weight: 700; font-size: 10.5px;
-        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    div[data-testid="column"] .stButton>button {{
+        background-color: transparent !important; color: #7A6E72 !important;
+        border: none !important; box-shadow: none !important; font-size: 12px !important;
+        font-weight: 600 !important; padding: 4px 8px !important;
     }}
-    .nav-step-label {{ font-size: 12.5px; color: #7A6E72; font-weight: 500; white-space: nowrap; }}
-    .nav-step-sep {{ width: 18px; height: 1px; background-color: #DFD6D9; margin: 0 8px; }}
+    div[data-testid="column"] .stButton>button:hover {{ color: #6B5B73 !important; background-color: #F1EEF5 !important; }}
 
     .hero {{
         padding: 42px 42px;
@@ -176,21 +174,23 @@ st.markdown(f"""
         <div class="navbar-name">{APP_NAME}</div>
         <div class="navbar-sub">Plateforme de prévention du churn</div>
     </div>
-    <div class="nav-steps">
-        <div class="nav-step"><div class="nav-step-num">1</div><div class="nav-step-label">Import</div></div>
-        <div class="nav-step-sep"></div>
-        <div class="nav-step"><div class="nav-step-num">2</div><div class="nav-step-label">Modèle</div></div>
-        <div class="nav-step-sep"></div>
-        <div class="nav-step"><div class="nav-step-num">3</div><div class="nav-step-label">Client</div></div>
-        <div class="nav-step-sep"></div>
-        <div class="nav-step"><div class="nav-step-num">4</div><div class="nav-step-label">Agent</div></div>
-        <div class="nav-step-sep"></div>
-        <div class="nav-step"><div class="nav-step-num">5</div><div class="nav-step-label">Digital Twin</div></div>
-        <div class="nav-step-sep"></div>
-        <div class="nav-step"><div class="nav-step-num">6</div><div class="nav-step-label">Recommandation</div></div>
-    </div>
 </div>
 """, unsafe_allow_html=True)
+
+if 'page' not in st.session_state:
+    st.session_state.page = "Données & Modèle"
+
+step_targets = {{
+    "1 · Import": "Données & Modèle", "2 · Modèle": "Données & Modèle",
+    "3 · Client": "Analyser un client", "4 · Agent": "Analyser un client",
+    "5 · Digital Twin": "Analyser un client", "6 · Recommandation": "Analyser un client",
+}}
+nav_cols = st.columns(len(step_targets))
+for col, (label, target) in zip(nav_cols, step_targets.items()):
+    with col:
+        if st.button(label, key=f"navstep_{{label}}", use_container_width=True):
+            st.session_state.page = target
+            st.rerun()
 
 # ============================================================
 # ETAT DE SESSION
@@ -214,7 +214,8 @@ with st.sidebar:
     <div style="font-size:12.5px; color:#AFA0A4; margin:3px 0 0 0;">Prévention du churn client</div>
     """, unsafe_allow_html=True)
     st.divider()
-    page = st.radio("Navigation", ["Données & Modèle", "Analyser un client"], label_visibility="collapsed")
+    page = st.radio("Navigation", ["Données & Modèle", "Analyser un client"],
+                     label_visibility="collapsed", key="page")
     st.divider()
 
     if st.session_state.model is not None:
@@ -248,6 +249,23 @@ if page == "Données & Modèle":
         st.success(f"Fichier chargé — {df_raw.shape[0]} lignes, {df_raw.shape[1]} colonnes")
         with st.expander("Aperçu des données"):
             st.dataframe(df_raw.head())
+
+        st.subheader("Dashboard — aperçu des données")
+        d1, d2, d3 = st.columns(3)
+        d1.metric("Nombre de clients", f"{df_raw.shape[0]}")
+        d2.metric("Nombre de variables", f"{df_raw.shape[1]}")
+        d3.metric("Valeurs manquantes", f"{int(df_raw.isnull().sum().sum())}")
+        num_cols_preview = df_raw.select_dtypes(include=[np.number]).columns.tolist()
+        if num_cols_preview:
+            st.caption("Distribution d'une variable numérique (aperçu rapide)")
+            preview_col = st.selectbox("Variable à visualiser", num_cols_preview, key="dash_preview_col")
+            fig_d, ax_d = plt.subplots(figsize=(7, 2.8))
+            fig_d.patch.set_alpha(0)
+            ax_d.set_facecolor("none")
+            ax_d.hist(df_raw[preview_col].dropna(), bins=25, color='#8B5A6B')
+            ax_d.tick_params(colors='#7A6E72')
+            for spine in ax_d.spines.values(): spine.set_color('#ECE6E5')
+            st.pyplot(fig_d)
 
         st.subheader("2 · Configuration")
         col1, col2 = st.columns(2)
