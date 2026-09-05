@@ -163,18 +163,32 @@ st.markdown(f"""
     hr {{ border-color: #ECE6E5 !important; }}
 
     .nav-arrow {{ text-align: center; color: #B5A8AC; font-size: 18px; font-weight: 700; padding-top: 6px; }}
+
+    .flow-horizontal {{
+        display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+        padding: 14px 4px; margin-bottom: 14px;
+    }}
+    .flow-h-item {{ display: flex; align-items: center; gap: 7px; }}
+    .flow-h-num {{
+        width: 22px; height: 22px; border-radius: 7px;
+        background-color: #F1E8EC; color: #6B3A50; font-weight: 800; font-size: 11.5px;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        border: 1px solid #D9C4CD;
+    }}
+    .flow-h-label {{ font-size: 12.5px; color: #1A1418; font-weight: 700; white-space: nowrap; }}
+    .flow-h-arrow {{ color: #C9B8BF; font-size: 14px; font-weight: 700; margin: 0 2px; }}
     button[kind="secondary"] {{
-        background-color: #FFFFFF !important;
+        background-color: #F1E8EC !important;
         color: #1A1418 !important;
         font-weight: 800 !important;
-        border: 1.5px solid #D9CFD3 !important;
+        border: 1.5px solid #D9C4CD !important;
     }}
     button[kind="secondary"]:hover {{
-        background-color: #F7F2F1 !important;
+        background-color: #E7D8DF !important;
         border-color: #8B5A6B !important;
         color: #1A1418 !important;
     }}
-    button[kind="secondary"] p {{ color: #1A1418 !important; font-weight: 800 !important; }}
+    button[kind="secondary"] p {{ color: #1A1418 !important; font-weight: 800 !important; white-space: normal !important; }}
 </style>
 
 <div class="navbar">
@@ -188,33 +202,33 @@ st.markdown(f"""
 if 'page' not in st.session_state:
     st.session_state.page = "Données & Modèle"
 
-step_targets = {
-    "1 · Import": "Données & Modèle",
-    "2 · Dashboard": "Données & Modèle",
-    "3 · Modèle": "Données & Modèle",
-    "4 · Client": "Analyser un client",
-    "5 · Agent": "Analyser un client",
-    "6 · Digital Twin": "Analyser un client",
-    "7 · Recommandation": "Analyser un client",
-}
-items = list(step_targets.items())
-widths = []
-for i in range(len(items)):
-    widths.append(4)
-    if i != len(items) - 1:
-        widths.append(1)
-nav_cols = st.columns(widths)
-col_idx = 0
-for i, (label, target) in enumerate(items):
-    with nav_cols[col_idx]:
-        if st.button(label, key=f"navstep_{label}", use_container_width=True):
-            st.session_state.page = target
-            st.rerun()
-    col_idx += 1
-    if i != len(items) - 1:
-        with nav_cols[col_idx]:
-            st.markdown('<div class="nav-arrow">→</div>', unsafe_allow_html=True)
-        col_idx += 1
+st.markdown("""
+<div class="flow-horizontal">
+    <div class="flow-h-item"><div class="flow-h-num">1</div><div class="flow-h-label">Import</div></div>
+    <div class="flow-h-arrow">→</div>
+    <div class="flow-h-item"><div class="flow-h-num">2</div><div class="flow-h-label">Dashboard</div></div>
+    <div class="flow-h-arrow">→</div>
+    <div class="flow-h-item"><div class="flow-h-num">3</div><div class="flow-h-label">Modèle</div></div>
+    <div class="flow-h-arrow">→</div>
+    <div class="flow-h-item"><div class="flow-h-num">4</div><div class="flow-h-label">Client</div></div>
+    <div class="flow-h-arrow">→</div>
+    <div class="flow-h-item"><div class="flow-h-num">5</div><div class="flow-h-label">Agent</div></div>
+    <div class="flow-h-arrow">→</div>
+    <div class="flow-h-item"><div class="flow-h-num">6</div><div class="flow-h-label">Digital Twin</div></div>
+    <div class="flow-h-arrow">→</div>
+    <div class="flow-h-item"><div class="flow-h-num">7</div><div class="flow-h-label">Recommandation</div></div>
+</div>
+""", unsafe_allow_html=True)
+
+nav1, nav2 = st.columns(2)
+with nav1:
+    if st.button("Données & Modèle", key="navstep_data", use_container_width=True):
+        st.session_state.page = "Données & Modèle"
+        st.rerun()
+with nav2:
+    if st.button("Analyser un client", key="navstep_client", use_container_width=True):
+        st.session_state.page = "Analyser un client"
+        st.rerun()
 
 # ============================================================
 # ETAT DE SESSION
