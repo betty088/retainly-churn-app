@@ -39,12 +39,6 @@ st.markdown(f"""
     .navbar-sub {{ font-size: 12.5px; color: #9C8E92; margin-top: 1px; }}
 
     .nav-steps {{ display: flex; align-items: center; gap: 4px; }}
-    div[data-testid="column"] .stButton>button {{
-        background-color: transparent !important; color: #7A6E72 !important;
-        border: none !important; box-shadow: none !important; font-size: 12px !important;
-        font-weight: 600 !important; padding: 4px 8px !important;
-    }}
-    div[data-testid="column"] .stButton>button:hover {{ color: #6B5B73 !important; background-color: #F1EEF5 !important; }}
 
     .hero {{
         padding: 42px 42px;
