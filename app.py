@@ -161,6 +161,18 @@ st.markdown(f"""
 
     div[data-testid="stDataFrame"] {{ border-radius: 12px; overflow: hidden; }}
     hr {{ border-color: #ECE6E5 !important; }}
+
+    .nav-arrow {{ text-align: center; color: #B5A8AC; font-size: 18px; font-weight: 700; padding-top: 6px; }}
+    div[data-testid="column"] .stButton button {{
+        background-color: #FFFFFF !important;
+        color: #1A1418 !important;
+        font-weight: 800 !important;
+        border: 1.5px solid #D9CFD3 !important;
+    }}
+    div[data-testid="column"] .stButton button:hover {{
+        background-color: #F7F2F1 !important;
+        border-color: #8B5A6B !important;
+    }}
 </style>
 
 <div class="navbar">
@@ -175,16 +187,32 @@ if 'page' not in st.session_state:
     st.session_state.page = "Données & Modèle"
 
 step_targets = {
-    "1 · Import": "Données & Modèle", "2 · Modèle": "Données & Modèle",
-    "3 · Client": "Analyser un client", "4 · Agent": "Analyser un client",
-    "5 · Digital Twin": "Analyser un client", "6 · Recommandation": "Analyser un client",
+    "1 · Import": "Données & Modèle",
+    "2 · Dashboard": "Données & Modèle",
+    "3 · Modèle": "Données & Modèle",
+    "4 · Client": "Analyser un client",
+    "5 · Agent": "Analyser un client",
+    "6 · Digital Twin": "Analyser un client",
+    "7 · Recommandation": "Analyser un client",
 }
-nav_cols = st.columns(len(step_targets))
-for col, (label, target) in zip(nav_cols, step_targets.items()):
-    with col:
+items = list(step_targets.items())
+widths = []
+for i in range(len(items)):
+    widths.append(4)
+    if i != len(items) - 1:
+        widths.append(1)
+nav_cols = st.columns(widths)
+col_idx = 0
+for i, (label, target) in enumerate(items):
+    with nav_cols[col_idx]:
         if st.button(label, key=f"navstep_{label}", use_container_width=True):
             st.session_state.page = target
             st.rerun()
+    col_idx += 1
+    if i != len(items) - 1:
+        with nav_cols[col_idx]:
+            st.markdown('<div class="nav-arrow">→</div>', unsafe_allow_html=True)
+        col_idx += 1
 
 # ============================================================
 # ETAT DE SESSION
