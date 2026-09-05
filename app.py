@@ -180,15 +180,15 @@ st.markdown(f"""
 if 'page' not in st.session_state:
     st.session_state.page = "Données & Modèle"
 
-step_targets = {{
+step_targets = {
     "1 · Import": "Données & Modèle", "2 · Modèle": "Données & Modèle",
     "3 · Client": "Analyser un client", "4 · Agent": "Analyser un client",
     "5 · Digital Twin": "Analyser un client", "6 · Recommandation": "Analyser un client",
-}}
+}
 nav_cols = st.columns(len(step_targets))
 for col, (label, target) in zip(nav_cols, step_targets.items()):
     with col:
-        if st.button(label, key=f"navstep_{{label}}", use_container_width=True):
+        if st.button(label, key=f"navstep_{label}", use_container_width=True):
             st.session_state.page = target
             st.rerun()
 
