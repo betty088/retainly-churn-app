@@ -127,23 +127,23 @@ st.markdown(f"""
     @keyframes fadeIn {{ from {{opacity:0; transform: translateY(3px);}} to {{opacity:1; transform: translateY(0);}} }}
 
     .badge-alerte {{
-        background-color: #F7ECEE; color: #9B4D5D; border: 1px solid #EAD6DA;
-        padding: 5px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px;
+        background-color: #F7ECEE; color: #7A2E3D; border: 1px solid #EAD6DA;
+        padding: 6px 16px; border-radius: 20px; font-weight: 800; font-size: 13px;
         letter-spacing: .03em;
     }}
     .badge-ok {{
-        background-color: #EDF1F5; color: #4F6B8A; border: 1px solid #D8E1EA;
-        padding: 5px 14px; border-radius: 20px; font-weight: 700; font-size: 11.5px;
+        background-color: #EDF1F5; color: #2F4A66; border: 1px solid #D8E1EA;
+        padding: 6px 16px; border-radius: 20px; font-weight: 800; font-size: 13px;
         letter-spacing: .03em;
     }}
     .badge-already {{
-        background-color: #FAF5EA; color: #A5813F; border: 1px solid #EADFC3;
-        padding: 3px 10px; border-radius: 14px; font-weight: 600; font-size: 11px;
+        background-color: #FAF5EA; color: #7A5B22; border: 1px solid #EADFC3;
+        padding: 4px 12px; border-radius: 14px; font-weight: 700; font-size: 12px;
     }}
     .why-box {{
         background-color: #FBFAFA; border: 1px solid #ECE6E5; border-left: 3px solid #8B5A6B;
-        border-radius: 12px; padding: 16px 18px; margin-top: 12px; color: #6E6266; font-size: 13.5px;
-        line-height: 1.6;
+        border-radius: 12px; padding: 16px 18px; margin-top: 12px; color: #4A3E42; font-size: 14px;
+        line-height: 1.65; font-weight: 500;
     }}
 
     .stButton>button {{
@@ -175,9 +175,8 @@ if 'page' not in st.session_state:
     st.session_state.page = "Données & Modèle"
 
 step_targets = {
-    "1 · Import": "Données & Modèle", "2 · Modèle": "Données & Modèle",
-    "3 · Client": "Analyser un client", "4 · Agent": "Analyser un client",
-    "5 · Digital Twin": "Analyser un client", "6 · Recommandation": "Analyser un client",
+    "1 · Import": "Données & Modèle", "2 · Dashboard": "Données & Modèle",
+    "3 · Modèle": "Données & Modèle", "4 · Analyse client": "Analyser un client",
 }
 nav_cols = st.columns(len(step_targets))
 for col, (label, target) in zip(nav_cols, step_targets.items()):
