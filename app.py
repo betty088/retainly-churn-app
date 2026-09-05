@@ -163,16 +163,18 @@ st.markdown(f"""
     hr {{ border-color: #ECE6E5 !important; }}
 
     .nav-arrow {{ text-align: center; color: #B5A8AC; font-size: 18px; font-weight: 700; padding-top: 6px; }}
-    div[data-testid="column"] .stButton button {{
+    button[kind="secondary"] {{
         background-color: #FFFFFF !important;
         color: #1A1418 !important;
         font-weight: 800 !important;
         border: 1.5px solid #D9CFD3 !important;
     }}
-    div[data-testid="column"] .stButton button:hover {{
+    button[kind="secondary"]:hover {{
         background-color: #F7F2F1 !important;
         border-color: #8B5A6B !important;
+        color: #1A1418 !important;
     }}
+    button[kind="secondary"] p {{ color: #1A1418 !important; font-weight: 800 !important; }}
 </style>
 
 <div class="navbar">
@@ -561,6 +563,99 @@ def build_text_report(client_idx, result):
     return "\n".join(lines)
 
 
+def render_result(result, client_idx):
+    st.divider()
+    st.caption(f"Client analysé : {client_idx}")
+    if result['statut'] == 'OK':
+        st.markdown('<span class="badge-ok">Risque faible</span>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="card">
+            <div style="font-size:34px; font-weight:800; color:{risk_color(result['risque_initial'])};">
+                {result['risque_initial']}%
+            </div>
+            <div class="risk-bar-track">
+                <div class="risk-bar-fill" style="width:{result['risque_initial']}%; background:{risk_color(result['risque_initial'])};"></div>
+            </div>
+            <p style="margin-top:10px;">{result['message']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown('<span class="badge-alerte">Alerte churn</span>', unsafe_allow_html=True)
+
+        if 'recommandation' in result:
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.markdown(f"""
+                <div class="card">
+                    <div style="color:#AFA0A4; font-size:13px;">Risque initial</div>
+                    <div style="font-size:28px; font-weight:800; color:{risk_color(result['risque_initial'])};">{result['risque_initial']}%</div>
+                    <div class="risk-bar-track"><div class="risk-bar-fill" style="width:{result['risque_initial']}%; background:{risk_color(result['risque_initial'])};"></div></div>
+                </div>""", unsafe_allow_html=True)
+            with c2:
+                st.markdown(f"""
+                <div class="card">
+                    <div style="color:#AFA0A4; font-size:13px;">Risque après action</div>
+                    <div style="font-size:28px; font-weight:800; color:{risk_color(result['nouveau_risque'])};">{result['nouveau_risque']}%</div>
+                    <div class="risk-bar-track"><div class="risk-bar-fill" style="width:{result['nouveau_risque']}%; background:{risk_color(result['nouveau_risque'])};"></div></div>
+                </div>""", unsafe_allow_html=True)
+            with c3:
+                st.markdown(f"""
+                <div class="card">
+                    <div style="color:#AFA0A4; font-size:13px;">Réduction obtenue</div>
+                    <div style="font-size:28px; font-weight:800; color:#8B5A6B;">-{result['reduction']} pts</div>
+                    <div style="margin-top:6px; color:#3D2B35; font-size:13px; font-weight:600;">{result['recommandation']}</div>
+                </div>""", unsafe_allow_html=True)
+
+            n_alt = result['nb_testees'] - 1
+            st.markdown(f"""
+            <div class="why-box">
+                <strong style="color:#3D2B35;">Pourquoi cette recommandation ?</strong><br>
+                Ce client a été analysé individuellement : parmi les {result['nb_testees']} actions et combinaisons
+                testées par le Digital Twin pour son profil précis, « {result['recommandation']} » est celle qui
+                produit la plus forte baisse de son risque de départ (-{result['reduction']} points),
+                devançant les {n_alt} autres options simulées pour ce même client.
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.caption("Top simulations testées pour ce client, classées par efficacité :")
+            df_opts = pd.DataFrame(result['toutes_options'])
+            st.dataframe(
+                df_opts,
+                use_container_width=True, hide_index=True,
+                column_config={
+                    "action": "Action testée",
+                    "nouveau_risque": st.column_config.ProgressColumn(
+                        "Nouveau risque", format="%.1f%%", min_value=0, max_value=100),
+                    "reduction": st.column_config.NumberColumn("Réduction (pts)", format="%.2f"),
+                }
+            )
+
+            dcol1, dcol2 = st.columns(2)
+            with dcol1:
+                st.download_button(
+                    "Exporter le rapport (.txt)",
+                    data=build_text_report(client_idx, result),
+                    file_name=f"rapport_client_{client_idx}.txt",
+                    mime="text/plain",
+                    key=f"dl_txt_{client_idx}",
+                )
+            with dcol2:
+                st.download_button(
+                    "Exporter les simulations (.csv)",
+                    data=df_opts.to_csv(index=False).encode('utf-8'),
+                    file_name=f"simulations_client_{client_idx}.csv",
+                    mime="text/csv",
+                    key=f"dl_csv_{client_idx}",
+                )
+        else:
+            st.markdown(f'<div class="card">{result.get("message","")}</div>', unsafe_allow_html=True)
+
+        if result.get('deja_actifs'):
+            st.caption("Leviers déjà actifs chez ce client (non testés) :")
+            st.markdown(" ".join(f'<span class="badge-already">{a}</span>' for a in result['deja_actifs']),
+                        unsafe_allow_html=True)
+
+
 # ============================================================
 # PAGE 2 — ANALYSE D'UN CLIENT
 # ============================================================
@@ -574,7 +669,12 @@ if page == "Analyser un client":
         </div>
         """, unsafe_allow_html=True)
     else:
-        st.subheader("Sélectionner un client")
+        if st.session_state.get('last_result') is not None:
+            st.subheader("Dernière analyse effectuée")
+            render_result(st.session_state['last_result'], st.session_state['last_client_idx'])
+            st.divider()
+
+        st.subheader("Sélectionner un nouveau client")
         client_idx = st.selectbox("Client (index dans l'échantillon de test)",
                                    st.session_state.X_test.index.tolist())
         client_state = st.session_state.X_test.loc[client_idx].to_dict()
@@ -623,94 +723,7 @@ if page == "Analyser un client":
             result = agent.analyze_client(client_state, progress_callback=cb)
             st.session_state['last_result'] = result
             st.session_state['last_client_idx'] = client_idx
-
-            st.divider()
-            if result['statut'] == 'OK':
-                st.markdown('<span class="badge-ok">Risque faible</span>', unsafe_allow_html=True)
-                st.markdown(f"""
-                <div class="card">
-                    <div style="font-size:34px; font-weight:800; color:{risk_color(result['risque_initial'])};">
-                        {result['risque_initial']}%
-                    </div>
-                    <div class="risk-bar-track">
-                        <div class="risk-bar-fill" style="width:{result['risque_initial']}%; background:{risk_color(result['risque_initial'])};"></div>
-                    </div>
-                    <p style="margin-top:10px;">{result['message']}</p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown('<span class="badge-alerte">Alerte churn</span>', unsafe_allow_html=True)
-
-                if 'recommandation' in result:
-                    c1, c2, c3 = st.columns(3)
-                    with c1:
-                        st.markdown(f"""
-                        <div class="card">
-                            <div style="color:#AFA0A4; font-size:13px;">Risque initial</div>
-                            <div style="font-size:28px; font-weight:800; color:{risk_color(result['risque_initial'])};">{result['risque_initial']}%</div>
-                            <div class="risk-bar-track"><div class="risk-bar-fill" style="width:{result['risque_initial']}%; background:{risk_color(result['risque_initial'])};"></div></div>
-                        </div>""", unsafe_allow_html=True)
-                    with c2:
-                        st.markdown(f"""
-                        <div class="card">
-                            <div style="color:#AFA0A4; font-size:13px;">Risque après action</div>
-                            <div style="font-size:28px; font-weight:800; color:{risk_color(result['nouveau_risque'])};">{result['nouveau_risque']}%</div>
-                            <div class="risk-bar-track"><div class="risk-bar-fill" style="width:{result['nouveau_risque']}%; background:{risk_color(result['nouveau_risque'])};"></div></div>
-                        </div>""", unsafe_allow_html=True)
-                    with c3:
-                        st.markdown(f"""
-                        <div class="card">
-                            <div style="color:#AFA0A4; font-size:13px;">Réduction obtenue</div>
-                            <div style="font-size:28px; font-weight:800; color:#8B5A6B;">-{result['reduction']} pts</div>
-                            <div style="margin-top:6px; color:#3D2B35; font-size:13px; font-weight:600;">{result['recommandation']}</div>
-                        </div>""", unsafe_allow_html=True)
-
-                    n_alt = result['nb_testees'] - 1
-                    st.markdown(f"""
-                    <div class="why-box">
-                        <strong style="color:#3D2B35;">Pourquoi cette recommandation ?</strong><br>
-                        Ce client a été analysé individuellement : parmi les {result['nb_testees']} actions et combinaisons
-                        testées par le Digital Twin pour son profil précis, « {result['recommandation']} » est celle qui
-                        produit la plus forte baisse de son risque de départ (-{result['reduction']} points),
-                        devançant les {n_alt} autres options simulées pour ce même client.
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    st.caption("Top simulations testées pour ce client, classées par efficacité :")
-                    df_opts = pd.DataFrame(result['toutes_options'])
-                    st.dataframe(
-                        df_opts,
-                        use_container_width=True, hide_index=True,
-                        column_config={
-                            "action": "Action testée",
-                            "nouveau_risque": st.column_config.ProgressColumn(
-                                "Nouveau risque", format="%.1f%%", min_value=0, max_value=100),
-                            "reduction": st.column_config.NumberColumn("Réduction (pts)", format="%.2f"),
-                        }
-                    )
-
-                    dcol1, dcol2 = st.columns(2)
-                    with dcol1:
-                        st.download_button(
-                            "Exporter le rapport (.txt)",
-                            data=build_text_report(client_idx, result),
-                            file_name=f"rapport_client_{client_idx}.txt",
-                            mime="text/plain",
-                        )
-                    with dcol2:
-                        st.download_button(
-                            "Exporter les simulations (.csv)",
-                            data=df_opts.to_csv(index=False).encode('utf-8'),
-                            file_name=f"simulations_client_{client_idx}.csv",
-                            mime="text/csv",
-                        )
-                else:
-                    st.markdown(f'<div class="card">{result.get("message","")}</div>', unsafe_allow_html=True)
-
-                if result.get('deja_actifs'):
-                    st.caption("Leviers déjà actifs chez ce client (non testés) :")
-                    st.markdown(" ".join(f'<span class="badge-already">{a}</span>' for a in result['deja_actifs']),
-                                unsafe_allow_html=True)
+            st.rerun()
 
 st.divider()
 foot1, foot2 = st.columns([3, 1])
